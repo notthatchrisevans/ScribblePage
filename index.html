@@ -32,7 +32,8 @@
 
         let draggedPoint = null;
         let hoveredPoint = null;
-        const HANDLE_SIZE = 50;
+        const HANDLE_HEIGHT = 50;
+        const HANDLE_WIDTH = HANDLE_HEIGHT * 2.5;
 
         // Selection circle in upper right
         const selectionCircle = {
@@ -65,16 +66,218 @@
                 ctx.stroke();
 
                 // Label
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                const hasSelected = selectedPoints.size > 0;
+                const labelY = y + r - 20;
+
                 ctx.font = '12px Courier New, monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('new gallery', x, y + r - 20);
+
+                if (hasSelected) {
+                    // Draw button box around text
+                    const textWidth = ctx.measureText('new gallery').width;
+                    const padding = 8;
+                    const boxWidth = textWidth + padding * 2;
+                    const boxHeight = 20;
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.fillRect(x - boxWidth/2, labelY - boxHeight/2, boxWidth, boxHeight);
+                    ctx.strokeRect(x - boxWidth/2, labelY - boxHeight/2, boxWidth, boxHeight);
+
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                } else {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                }
+
+                ctx.fillText('new gallery', x, labelY);
             }
         };
 
         // Track which points are selected (inside the circle)
         const selectedPoints = new Set();
+
+        // Particle system - free-floating particles affected by any tag
+        const particles = [];
+        const pendingParticles = [];
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 0.08;
+                this.vy = (Math.random() - 0.5) * 0.08;
+                this.size = 37.5 + Math.random() * 75; // Spawn at 37.5 to 112.5
+                this.growthRate = (Math.random() - 0.5) * 0.6; // Slower grow/shrink for longer life
+                this.grey = Math.floor(230 + Math.random() * 25); // Light grey to almost white (230-255)
+                this.dying = false; // Whether particle is fading out
+                this.fadeIn = 0; // Fade in progress (0 to 1)
+                this.fadeInSpeed = 0.002 + Math.random() * 0.003; // Very slow fade in
+                this.hasBorder = Math.random() < 0.4; // 40% chance of having a border
+                this.borderGrey = Math.max(0, this.grey - 20 - Math.random() * 15); // Slightly darker
+            }
+
+            update() {
+                // Affected by all control points
+                for (const point of controlPoints) {
+                    const dx = point.x - this.x;
+                    const dy = point.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 200 && dist > 0) {
+                        // Stronger force, especially when close
+                        const force = 0.8 / (dist * 0.05);
+                        // Push away when close, slight pull when far
+                        const pushPull = dist < 80 ? -1 : 0.15;
+                        this.vx += (dx / dist) * force * pushPull;
+                        this.vy += (dy / dist) * force * pushPull;
+                    }
+                }
+
+                // Heavy damping - less movement
+                this.vx *= 0.96;
+                this.vy *= 0.96;
+
+                // Very gentle random drift
+                this.vx += (Math.random() - 0.5) * 0.008;
+                this.vy += (Math.random() - 0.5) * 0.008;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Soft boundary - nudge back if going off screen
+                if (this.x < 0) this.vx += 0.3;
+                if (this.x > canvas.width) this.vx -= 0.3;
+                if (this.y < 0) this.vy += 0.3;
+                if (this.y > canvas.height) this.vy -= 0.3;
+
+                // Fade in slowly
+                if (this.fadeIn < 1) {
+                    this.fadeIn += this.fadeInSpeed;
+                    if (this.fadeIn > 1) this.fadeIn = 1;
+                }
+
+                // Size changes
+                if (!this.dying) {
+                    // Randomly adjust growth rate for organic feel
+                    this.growthRate += (Math.random() - 0.5) * 0.15;
+                    this.growthRate = Math.max(-0.9, Math.min(0.9, this.growthRate));
+                    this.size += this.growthRate;
+
+                    // Check for death conditions
+                    if (this.size > 300) {
+                        this.dying = true;
+                        this.growthRate = 0.45 + Math.random() * 0.45; // Keep growing while dying
+                    } else if (this.size < 75) {
+                        this.dying = true;
+                        this.growthRate = -0.3 - Math.random() * 0.3; // Keep shrinking while dying
+                    }
+                } else {
+                    // Continue growing/shrinking while fading
+                    this.size += this.growthRate;
+
+                    // Dead when grown too big or shrunk to nothing
+                    if (this.size > 450 || this.size <= 0) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            draw() {
+                let alpha = 0.5;
+
+                if (this.dying) {
+                    if (this.growthRate > 0) {
+                        // Growing and dying - fade based on size from 300 to 450
+                        alpha = 0.5 * (1 - (this.size - 300) / 150);
+                    } else {
+                        // Shrinking and dying - fade based on size from 75 to 0
+                        alpha = 0.5 * (this.size / 75);
+                    }
+                }
+
+                // Apply fade in
+                alpha *= this.fadeIn;
+
+                alpha = Math.max(0, Math.min(0.5, alpha));
+
+                const g = this.grey;
+                const radius = Math.max(1, this.size);
+
+                // Fill
+                ctx.fillStyle = `rgba(${g}, ${g}, ${g}, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Thin border for some particles
+                if (this.hasBorder) {
+                    const bg = this.borderGrey;
+                    ctx.strokeStyle = `rgba(${bg}, ${bg}, ${bg}, ${alpha * 0.4})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Randomly spawn dust motes across the screen
+        function spawnRandomParticles() {
+            // Target many more particles on screen
+            const targetCount = 250;
+            const currentCount = particles.length + pendingParticles.length;
+
+            // Spawn multiple particles per frame when below target
+            if (currentCount < targetCount) {
+                const spawnChance = Math.random();
+                const numToSpawn = spawnChance < 0.3 ? 2 : (spawnChance < 0.7 ? 1 : 0);
+
+                for (let i = 0; i < numToSpawn; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    const delay = Math.floor(Math.random() * 20);
+                    pendingParticles.push({ x, y, delay });
+                }
+            }
+        }
+
+        function updateAndDrawParticles() {
+            // Spawn new random particles
+            spawnRandomParticles();
+
+            // Process pending particles
+            for (let i = pendingParticles.length - 1; i >= 0; i--) {
+                const pending = pendingParticles[i];
+                pending.delay--;
+                if (pending.delay <= 0) {
+                    particles.push(new Particle(pending.x, pending.y));
+                    pendingParticles.splice(i, 1);
+                }
+            }
+
+            // Update and draw active particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.draw();
+                if (!p.update()) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // Generate a random vibrant color
+        function randomColor() {
+            const hue = Math.floor(Math.random() * 360);
+            return {
+                hue: hue,
+                fill: `hsla(${hue}, 70%, 85%, 1)`,
+                stroke: `hsla(${hue}, 70%, 45%, 0.8)`,
+                text: `hsla(${hue}, 70%, 35%, 0.9)`,
+                line: `hsla(${(hue + 180) % 360}, 60%, 50%, 0.6)` // Complementary color for lines
+            };
+        }
 
         class ControlPoint {
             constructor(xRatio, yRatio) {
@@ -82,6 +285,7 @@
                 this.yRatio = yRatio;
                 this.x = canvas.width * xRatio;
                 this.y = canvas.height * yRatio;
+                this.selectedColor = null;
             }
 
             updatePosition() {
@@ -90,24 +294,25 @@
             }
 
             draw(isHovered, isSelected = false) {
-                const size = HANDLE_SIZE;
+                const w = HANDLE_WIDTH;
+                const h = HANDLE_HEIGHT;
 
-                if (isSelected) {
-                    // Selected style - blue tint
-                    ctx.fillStyle = 'rgba(220, 235, 255, 1)';
-                    ctx.strokeStyle = isHovered ? 'rgba(50, 100, 200, 0.9)' : 'rgba(50, 100, 200, 0.6)';
+                ctx.fillStyle = '#ffffff';
+
+                if (isSelected && this.selectedColor) {
+                    // Selected style - white fill, colored border
+                    ctx.strokeStyle = this.selectedColor.stroke;
                     ctx.lineWidth = isHovered ? 2 : 1.5;
                 } else {
-                    ctx.fillStyle = '#ffffff';
                     ctx.strokeStyle = isHovered ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.4)';
                     ctx.lineWidth = isHovered ? 2 : 1;
                 }
 
-                ctx.fillRect(this.x - size/2, this.y - size/2, size, size);
-                ctx.strokeRect(this.x - size/2, this.y - size/2, size, size);
+                ctx.fillRect(this.x - w/2, this.y - h/2, w, h);
+                ctx.strokeRect(this.x - w/2, this.y - h/2, w, h);
 
-                ctx.fillStyle = isSelected
-                    ? 'rgba(50, 100, 200, 0.8)'
+                ctx.fillStyle = (isSelected && this.selectedColor)
+                    ? this.selectedColor.text
                     : (isHovered ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.5)');
                 ctx.font = '14px Courier New, monospace';
                 ctx.textAlign = 'center';
@@ -116,9 +321,10 @@
             }
 
             contains(mx, my) {
-                const size = HANDLE_SIZE;
-                return mx >= this.x - size/2 && mx <= this.x + size/2 &&
-                       my >= this.y - size/2 && my <= this.y + size/2;
+                const w = HANDLE_WIDTH;
+                const h = HANDLE_HEIGHT;
+                return mx >= this.x - w/2 && mx <= this.x + w/2 &&
+                       my >= this.y - h/2 && my <= this.y + h/2;
             }
 
             setPosition(x, y) {
@@ -435,7 +641,7 @@
             if (selected.length === 1) {
                 // Single point - draw a self-connecting arc
                 const p = selected[0];
-                ctx.strokeStyle = 'rgba(50, 100, 200, 0.6)';
+                ctx.strokeStyle = p.selectedColor ? p.selectedColor.line : 'rgba(50, 100, 200, 0.6)';
                 const arcRadius = 30;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y - arcRadius, arcRadius, 0.3 * Math.PI, 0.7 * Math.PI);
@@ -463,7 +669,8 @@
                         const ctrlX = midX + (perpX / len) * curveAmount * curveDirection;
                         const ctrlY = midY + (perpY / len) * curveAmount * curveDirection;
 
-                        ctx.strokeStyle = 'rgba(50, 100, 200, 0.6)';
+                        // Use line color from first point
+                        ctx.strokeStyle = p1.selectedColor ? p1.selectedColor.line : 'rgba(50, 100, 200, 0.6)';
                         ctx.beginPath();
                         ctx.moveTo(p1.x, p1.y);
                         ctx.quadraticCurveTo(ctrlX, ctrlY, p2.x, p2.y);
@@ -503,7 +710,13 @@
                     const ctrlX = midX + (perpX / len) * curveAmount * curveDirection;
                     const ctrlY = midY + (perpY / len) * curveAmount * curveDirection;
 
-                    ctx.strokeStyle = `rgba(50, 100, 200, ${opacity})`;
+                    // Use line color from point with pulsing opacity
+                    if (p.selectedColor) {
+                        const hue = (p.selectedColor.hue + 180) % 360;
+                        ctx.strokeStyle = `hsla(${hue}, 60%, 50%, ${opacity})`;
+                    } else {
+                        ctx.strokeStyle = `rgba(50, 100, 200, ${opacity})`;
+                    }
                     ctx.beginPath();
                     ctx.moveTo(p.x, p.y);
                     ctx.quadraticCurveTo(ctrlX, ctrlY, dummy.x, dummy.y);
@@ -516,9 +729,17 @@
         function updateSelectedPoints() {
             for (const point of controlPoints) {
                 if (selectionCircle.contains(point.x, point.y)) {
-                    selectedPoints.add(point);
+                    if (!selectedPoints.has(point)) {
+                        // Entering circle - assign random color
+                        point.selectedColor = randomColor();
+                        selectedPoints.add(point);
+                    }
                 } else {
-                    selectedPoints.delete(point);
+                    if (selectedPoints.has(point)) {
+                        // Leaving circle - clear color
+                        point.selectedColor = null;
+                        selectedPoints.delete(point);
+                    }
                 }
             }
         }
@@ -530,7 +751,10 @@
             // Update selection state
             updateSelectedPoints();
 
-            // Draw selection circle first (background)
+            // Draw particles behind everything
+            updateAndDrawParticles();
+
+            // Draw selection circle
             selectionCircle.draw();
 
             // Draw dynamic curves for unselected points
