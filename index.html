@@ -11,7 +11,7 @@
             box-sizing: border-box;
         }
         body {
-            background: #fff;
+            background: #000;
             overflow: hidden;
             font-family: 'Courier New', Courier, monospace;
         }
@@ -57,8 +57,8 @@
                 const r = this.getRadius();
 
                 // Draw circle background
-                ctx.fillStyle = 'rgba(245, 245, 250, 0.9)';
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillStyle = 'rgba(20, 20, 25, 0.9)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -80,15 +80,15 @@
                     const boxWidth = textWidth + padding * 2;
                     const boxHeight = 20;
 
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillStyle = 'rgba(30, 30, 35, 0.9)';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
                     ctx.lineWidth = 1.5;
                     ctx.fillRect(x - boxWidth/2, labelY - boxHeight/2, boxWidth, boxHeight);
                     ctx.strokeRect(x - boxWidth/2, labelY - boxHeight/2, boxWidth, boxHeight);
 
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
                 } else {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
                 }
 
                 ctx.fillText('new gallery', x, labelY);
@@ -110,12 +110,12 @@
                 this.vy = (Math.random() - 0.5) * 0.08;
                 this.size = 37.5 + Math.random() * 75; // Spawn at 37.5 to 112.5
                 this.growthRate = (Math.random() - 0.5) * 0.6; // Slower grow/shrink for longer life
-                this.grey = Math.floor(230 + Math.random() * 25); // Light grey to almost white (230-255)
+                this.grey = Math.floor(Math.random() * 25); // Dark grey to almost black (0-25)
                 this.dying = false; // Whether particle is fading out
                 this.fadeIn = 0; // Fade in progress (0 to 1)
                 this.fadeInSpeed = 0.002 + Math.random() * 0.003; // Very slow fade in
                 this.hasBorder = Math.random() < 0.4; // 40% chance of having a border
-                this.borderGrey = Math.max(0, this.grey - 20 - Math.random() * 15); // Slightly darker
+                this.borderGrey = Math.min(255, this.grey + 20 + Math.random() * 15); // Slightly lighter
             }
 
             update() {
@@ -272,9 +272,9 @@
             const hue = Math.floor(Math.random() * 360);
             return {
                 hue: hue,
-                fill: `hsla(${hue}, 70%, 85%, 1)`,
-                stroke: `hsla(${hue}, 70%, 45%, 0.8)`,
-                text: `hsla(${hue}, 70%, 35%, 0.9)`,
+                fill: `hsla(${hue}, 70%, 20%, 1)`,
+                stroke: `hsla(${hue}, 70%, 55%, 0.8)`,
+                text: `hsla(${hue}, 70%, 70%, 0.9)`,
                 line: `hsla(${(hue + 180) % 360}, 60%, 50%, 0.6)` // Complementary color for lines
             };
         }
@@ -297,14 +297,14 @@
                 const w = HANDLE_WIDTH;
                 const h = HANDLE_HEIGHT;
 
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = '#111111';
 
                 if (isSelected && this.selectedColor) {
-                    // Selected style - white fill, colored border
+                    // Selected style - dark fill, colored border
                     ctx.strokeStyle = this.selectedColor.stroke;
                     ctx.lineWidth = isHovered ? 2 : 1.5;
                 } else {
-                    ctx.strokeStyle = isHovered ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.4)';
+                    ctx.strokeStyle = isHovered ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
                     ctx.lineWidth = isHovered ? 2 : 1;
                 }
 
@@ -313,7 +313,7 @@
 
                 ctx.fillStyle = (isSelected && this.selectedColor)
                     ? this.selectedColor.text
-                    : (isHovered ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.5)');
+                    : (isHovered ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)');
                 ctx.font = '14px Courier New, monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -367,7 +367,7 @@
 
                 if (pts.length < 2) return;
 
-                ctx.strokeStyle = `rgba(15, 15, 20, ${opacity})`;
+                ctx.strokeStyle = `rgba(240, 240, 235, ${opacity})`;
                 ctx.lineWidth = 1;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
@@ -462,7 +462,7 @@
                         const ctrlX = midX + (perpX / len) * offset;
                         const ctrlY = midY + (perpY / len) * offset;
 
-                        ctx.strokeStyle = `rgba(15, 15, 20, ${opacity})`;
+                        ctx.strokeStyle = `rgba(240, 240, 235, ${opacity})`;
                         ctx.beginPath();
                         ctx.moveTo(p1.x, p1.y);
                         ctx.quadraticCurveTo(ctrlX, ctrlY, p2.x, p2.y);
@@ -489,7 +489,7 @@
                     const ctrlX = (p.x + dummy.x + ctrlDummy.x) / 3;
                     const ctrlY = (p.y + dummy.y + ctrlDummy.y) / 3;
 
-                    ctx.strokeStyle = `rgba(15, 15, 20, ${opacity})`;
+                    ctx.strokeStyle = `rgba(240, 240, 235, ${opacity})`;
                     ctx.beginPath();
                     ctx.moveTo(p.x, p.y);
                     ctx.quadraticCurveTo(ctrlX, ctrlY, dummy.x, dummy.y);
@@ -505,7 +505,7 @@
                     const pulse = Math.sin(phase) * 0.5 + 0.5;
                     const opacity = 0.15 + pulse * 0.65;
 
-                    ctx.strokeStyle = `rgba(15, 15, 20, ${opacity})`;
+                    ctx.strokeStyle = `rgba(240, 240, 235, ${opacity})`;
                     const arcRadius = 40 + i * 25;
                     const rotation = i * Math.PI / 3;
 
@@ -745,7 +745,7 @@
         }
 
         function animate() {
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Update selection state
