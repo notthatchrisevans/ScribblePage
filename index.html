@@ -35,6 +35,245 @@
         const HANDLE_HEIGHT = 50;
         const HANDLE_WIDTH = HANDLE_HEIGHT * 2.5;
 
+        // Gallery configuration
+        // Use file:// protocol for local testing, or serve via local web server
+        const GALLERY_PATH = 'file:///D:/Web/Gallaries/Test/AndyGallary/';
+        const GALLERY_HEIGHT = 120; // Height of image strip
+        const GALLERY_MARGIN = 20; // Margin from bottom
+        const IMAGE_GAP = 10; // Gap between images
+        const SELECTION_BOX_PADDING = 6; // Padding around selected image
+
+        // Sample tags for images (in real app, would come from EXIF or manifest)
+        const sampleTags = [
+            ['street', 'urban', 'night'],
+            ['portrait', 'studio'],
+            ['landscape', 'nature', 'mountains'],
+            ['architecture', 'modern'],
+            ['candid', 'people'],
+            ['abstract', 'texture'],
+            ['travel', 'city'],
+            ['black-and-white', 'mood'],
+            ['documentary', 'story'],
+            ['minimal', 'clean'],
+        ];
+
+        // Gallery images data
+        const galleryImages = [
+            { file: 'DSCF0427.jpg', tags: ['street', 'urban'] },
+            { file: 'DSCF1626.jpg', tags: ['portrait', 'candid'] },
+            { file: 'L1000314.jpg', tags: ['landscape', 'nature'] },
+            { file: 'L1000362.jpg', tags: ['architecture', 'city'] },
+            { file: 'L1000437.jpg', tags: ['street', 'night'] },
+            { file: 'L1000516.jpg', tags: ['portrait', 'studio'] },
+            { file: 'L1000539.jpg', tags: ['landscape', 'mountains'] },
+            { file: 'L1000540.jpg', tags: ['abstract', 'texture'] },
+            { file: 'L1000700.jpg', tags: ['travel', 'urban'] },
+            { file: 'L1000804.jpg', tags: ['minimal', 'clean'] },
+            { file: 'L1001430.jpg', tags: ['documentary', 'people'] },
+            { file: 'L1001747.jpg', tags: ['black-and-white', 'mood'] },
+            { file: 'L1001923.jpg', tags: ['candid', 'street'] },
+            { file: 'L1001949.jpg', tags: ['architecture', 'modern'] },
+            { file: 'L1002140.jpg', tags: ['portrait', 'natural-light'] },
+            { file: 'L1002356.jpg', tags: ['landscape', 'sunset'] },
+            { file: 'L1002589.jpg', tags: ['urban', 'geometry'] },
+            { file: 'L1002627.jpg', tags: ['travel', 'culture'] },
+            { file: 'L1002712.jpg', tags: ['street', 'shadows'] },
+            { file: 'L1002810.jpg', tags: ['nature', 'closeup'] },
+            { file: 'L1002827.jpg', tags: ['minimal', 'abstract'] },
+            { file: 'L1003052.jpg', tags: ['documentary', 'story'] },
+            { file: 'L1003064.jpg', tags: ['portrait', 'environmental'] },
+            { file: 'L1003657.jpg', tags: ['architecture', 'lines'] },
+            { file: 'L1011333.jpg', tags: ['night', 'city'] },
+            { file: 'L1011469.jpg', tags: ['candid', 'moment'] },
+            { file: 'L1011524.jpg', tags: ['landscape', 'wide'] },
+            { file: 'L1011524-2.jpg', tags: ['landscape', 'edit'] },
+            { file: 'L1011561.jpg', tags: ['street', 'color'] },
+            { file: 'L1011565.jpg', tags: ['urban', 'pattern'] },
+            { file: 'L1011590.jpg', tags: ['minimal', 'space'] },
+            { file: 'L1013229.jpg', tags: ['portrait', 'mood'] },
+            { file: 'L1013636.jpg', tags: ['travel', 'adventure'] },
+            { file: 'L1014406.jpg', tags: ['documentary', 'life'] },
+            { file: 'L1020015.jpg', tags: ['nature', 'light'] },
+            { file: 'L1030640.jpg', tags: ['architecture', 'detail'] },
+            { file: 'L1031048.jpg', tags: ['street', 'people'] },
+            { file: 'L1033116.jpg', tags: ['abstract', 'form'] },
+            { file: 'L1034512.jpg', tags: ['candid', 'emotion'] },
+            { file: 'L1035268-Enhanced-NR.jpg', tags: ['night', 'stars'] },
+            { file: 'L1037449.jpg', tags: ['landscape', 'dramatic'] },
+            { file: 'L1037643-Enhanced-NR-2.jpg', tags: ['night', 'long-exposure'] },
+            { file: 'L1037887.jpg', tags: ['urban', 'texture'] },
+            { file: 'L1038631.jpg', tags: ['portrait', 'artistic'] },
+            { file: 'L1038688.jpg', tags: ['minimal', 'composition'] },
+            { file: 'L1040668.jpg', tags: ['travel', 'explore'] },
+            { file: 'L1041164.jpg', tags: ['street', 'quiet'] },
+            { file: 'L1050083.jpg', tags: ['nature', 'green'] },
+            { file: 'L1050361.jpg', tags: ['architecture', 'urban'] },
+            { file: 'L1050470.jpg', tags: ['documentary', 'raw'] },
+            { file: 'L1050503.jpg', tags: ['landscape', 'peaceful'] },
+            { file: 'L1050672.jpg', tags: ['candid', 'natural'] },
+            { file: 'L1050941.jpg', tags: ['abstract', 'color'] },
+            { file: 'L1051097.jpg', tags: ['portrait', 'intimate'] },
+            { file: 'L1060664.jpg', tags: ['minimal', 'negative-space'] },
+            { file: 'L1120906.jpg', tags: ['travel', 'memory'] },
+        ];
+
+        // Gallery state
+        let selectedImageIndex = 0;
+        let galleryScrollOffset = 0; // Offset in pixels for smooth scrolling
+        const loadedImages = new Map(); // Cache for loaded Image objects
+
+        // Load images
+        function loadGalleryImages() {
+            galleryImages.forEach((imgData, index) => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedImages.set(index, img);
+                };
+                img.onerror = () => {
+                    console.warn(`Failed to load: ${imgData.file}`);
+                };
+                img.src = GALLERY_PATH + imgData.file;
+            });
+        }
+
+        // Calculate image width based on height (maintaining aspect ratio, default 3:2)
+        function getImageWidth(index) {
+            const img = loadedImages.get(index);
+            if (img && img.naturalWidth && img.naturalHeight) {
+                return (GALLERY_HEIGHT / img.naturalHeight) * img.naturalWidth;
+            }
+            return GALLERY_HEIGHT * 1.5; // Default 3:2 aspect ratio
+        }
+
+        // Get the X position where an image should be drawn
+        function getImageXPosition(index) {
+            let x = 0;
+            for (let i = 0; i < index; i++) {
+                x += getImageWidth(i) + IMAGE_GAP;
+            }
+            return x;
+        }
+
+        // Get total width of all images
+        function getTotalGalleryWidth() {
+            let width = 0;
+            for (let i = 0; i < galleryImages.length; i++) {
+                width += getImageWidth(i) + IMAGE_GAP;
+            }
+            return width - IMAGE_GAP; // Remove last gap
+        }
+
+        // Calculate scroll offset to center selected image
+        function getTargetScrollOffset() {
+            const centerX = canvas.width / 2;
+            let imageX = 0;
+            for (let i = 0; i < selectedImageIndex; i++) {
+                imageX += getImageWidth(i) + IMAGE_GAP;
+            }
+            const selectedWidth = getImageWidth(selectedImageIndex);
+            const imageCenterX = imageX + selectedWidth / 2;
+            return centerX - imageCenterX;
+        }
+
+        // Smoothly animate scroll offset
+        function updateGalleryScroll() {
+            const target = getTargetScrollOffset();
+            const diff = target - galleryScrollOffset;
+            galleryScrollOffset += diff * 0.15; // Smooth easing
+        }
+
+        // Draw the image gallery strip
+        function drawGallery() {
+            const y = canvas.height - GALLERY_HEIGHT - GALLERY_MARGIN;
+            const centerX = canvas.width / 2;
+
+            // Draw images
+            let x = galleryScrollOffset;
+            for (let i = 0; i < galleryImages.length; i++) {
+                const imgWidth = getImageWidth(i);
+                const img = loadedImages.get(i);
+
+                // Only draw if visible
+                if (x + imgWidth > 0 && x < canvas.width) {
+                    if (img) {
+                        // Draw the image
+                        ctx.drawImage(img, x, y, imgWidth, GALLERY_HEIGHT);
+                    } else {
+                        // Placeholder while loading
+                        ctx.fillStyle = 'rgba(40, 40, 45, 0.8)';
+                        ctx.fillRect(x, y, imgWidth, GALLERY_HEIGHT);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.font = '12px Courier New, monospace';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('loading...', x + imgWidth/2, y + GALLERY_HEIGHT/2);
+                    }
+
+                    // Draw selection box if this is the selected image
+                    if (i === selectedImageIndex) {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(
+                            x - SELECTION_BOX_PADDING,
+                            y - SELECTION_BOX_PADDING,
+                            imgWidth + SELECTION_BOX_PADDING * 2,
+                            GALLERY_HEIGHT + SELECTION_BOX_PADDING * 2
+                        );
+                    }
+                }
+
+                x += imgWidth + IMAGE_GAP;
+            }
+        }
+
+        // Navigate gallery
+        function navigateGallery(direction) {
+            selectedImageIndex += direction;
+            if (selectedImageIndex < 0) selectedImageIndex = 0;
+            if (selectedImageIndex >= galleryImages.length) selectedImageIndex = galleryImages.length - 1;
+            updateControlPointsFromSelectedImage();
+        }
+
+        // Update control points based on selected image's tags
+        function updateControlPointsFromSelectedImage() {
+            const imgData = galleryImages[selectedImageIndex];
+            if (!imgData) return;
+
+            // Clear existing control points
+            controlPoints.length = 0;
+            selectedPoints.clear();
+
+            // Create control points for each tag
+            imgData.tags.forEach((tag, i) => {
+                const angle = (i / imgData.tags.length) * Math.PI * 2 - Math.PI / 2;
+                const radius = 0.2;
+                const centerX = 0.4;
+                const centerY = 0.4;
+                const xRatio = centerX + Math.cos(angle) * radius;
+                const yRatio = centerY + Math.sin(angle) * radius;
+
+                const point = new ControlPoint(xRatio, yRatio);
+                point.label = tag;
+                controlPoints.push(point);
+            });
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                navigateGallery(-1);
+                e.preventDefault();
+            } else if (e.key === 'ArrowRight') {
+                navigateGallery(1);
+                e.preventDefault();
+            }
+        });
+
+        // Initialize gallery
+        loadGalleryImages();
+        // Initialize control points from first image after a short delay
+        setTimeout(updateControlPointsFromSelectedImage, 100);
+
         // Selection circle in upper right
         const selectionCircle = {
             getRadius() {
@@ -280,12 +519,13 @@
         }
 
         class ControlPoint {
-            constructor(xRatio, yRatio) {
+            constructor(xRatio, yRatio, label = 'tag') {
                 this.xRatio = xRatio;
                 this.yRatio = yRatio;
                 this.x = canvas.width * xRatio;
                 this.y = canvas.height * yRatio;
                 this.selectedColor = null;
+                this.label = label;
             }
 
             updatePosition() {
@@ -317,7 +557,7 @@
                 ctx.font = '14px Courier New, monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('tag', this.x, this.y);
+                ctx.fillText(this.label || 'tag', this.x, this.y);
             }
 
             contains(mx, my) {
@@ -335,15 +575,8 @@
             }
         }
 
-        const controlPoints = [
-            new ControlPoint(0.15, 0.25),
-            new ControlPoint(0.5, 0.15),
-            new ControlPoint(0.85, 0.3),
-            new ControlPoint(0.25, 0.6),
-            new ControlPoint(0.6, 0.55),
-            new ControlPoint(0.8, 0.75),
-            new ControlPoint(0.35, 0.85),
-        ];
+        // Control points will be populated from the selected image's tags
+        const controlPoints = [];
 
         class Curve {
             constructor(pointIndices) {
@@ -751,6 +984,9 @@
             // Update selection state
             updateSelectedPoints();
 
+            // Update gallery scroll position
+            updateGalleryScroll();
+
             // Draw particles behind everything
             updateAndDrawParticles();
 
@@ -768,6 +1004,9 @@
                 const isSelected = selectedPoints.has(point);
                 point.draw(point === hoveredPoint || point === draggedPoint, isSelected);
             }
+
+            // Draw gallery at the bottom
+            drawGallery();
 
             requestAnimationFrame(animate);
         }
